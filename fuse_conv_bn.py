@@ -17,21 +17,51 @@ def fuse(conv, bn):
         b = mean.new_zeros(mean.shape)
     w = w * (beta / var_sqrt).reshape([conv.out_channels, 1, 1, 1])
     b = (b - mean)/var_sqrt * beta + gamma
-    fused_conv = Conv2d(conv.in_channels,
-                         conv.out_channels,
-                         conv.kernel_size,
-                         conv.stride,
-                         conv.padding,
-                         bias=True)
+    fused_conv = nn.Conv2d(conv.in_channels,
+                           conv.out_channels,
+                           conv.kernel_size,
+                           conv.stride,
+                           conv.padding,
+                           conv.dilation,
+                           conv.groups,
+                           bias=True)
     fused_conv.weight = nn.Parameter(w)
     fused_conv.bias = nn.Parameter(b)
     return fused_conv
 
 
+def merge_conv_bn(net):
+    """
+    replace CNN+BN with CNN to speed up
+    """
+    previous = None
+    has_seen_cnn = False
+    conv_replace_queue = []
+    bn_replace_queue = []
+    for s in net.children():
+        if has_seen_cnn and isinstance(s, nn.BatchNorm2d):
+            conv_replace_queue.append(previous)
+            bn_replace_queue += [s]
+        if isinstance(s, nn.Conv2d):
+            has_seen_cnn = True
+        else:
+            has_seen_cnn = False
+        previous = s
+    if len(conv_replace_queue):
+        for n in dir(net):
+            sub = getattr(net, n)
+            if isinstance(sub, nn.Conv2d) and sub in conv_replace_queue:
+                idx = conv_replace_queue.index(sub)
+                bn = bn_replace_queue[idx]
+                new_conv = fuse(sub, bn)
+                setattr(net, n, new_conv)
+        for n in dir(net):
+            sub = getattr(net, n)
+            if isinstance(sub, nn.BatchNorm2d) and sub in bn_replace_queue:
+                setattr(net, n, nn.Identity())
+
+
 def cvt_ws_cnn(net):
-    """
-    :param net: FaceBoxes module, replace CNN+BN with CNN to speed up
-    """
     previous = None
     has_seen_cnn = False
     replace_queue = set()
@@ -59,8 +89,7 @@ def cvt_ws_cnn(net):
                 # todo: bn weights, bias
                 assert torch.allclose(new_conv.weight, sub.weight)
                 assert torch.allclose(new_conv.weight, sub.weight)
-                if sub.bias is not None:
-                    new_conv.bias = sub.bias
+                assert sub.bias is None
                 setattr(net, n, new_conv)
                 print(sub.bias)
         # if isinstance(subnet, BasicConv2d):
@@ -93,6 +122,6 @@ if __name__ == '__main__':
     m.eval()
     x = torch.rand(1, 3, 224, 224)
     y0 = m(x)
-    m.apply(cvt_ws_cnn);
+    m.apply(merge_conv_bn);
     y1 = m(x)
-    print(torch.allclose(y0, y1))
+    print(torch.norm(y0 - y1))
