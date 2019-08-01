@@ -48,17 +48,26 @@ def merge_conv_bn(net):
             has_seen_cnn = False
         previous = s
     if len(conv_replace_queue):
-        for n in dir(net):
-            sub = getattr(net, n)
-            if isinstance(sub, nn.Conv2d) and sub in conv_replace_queue:
-                idx = conv_replace_queue.index(sub)
-                bn = bn_replace_queue[idx]
-                new_conv = fuse(sub, bn)
-                setattr(net, n, new_conv)
-        for n in dir(net):
-            sub = getattr(net, n)
-            if isinstance(sub, nn.BatchNorm2d) and sub in bn_replace_queue:
-                setattr(net, n, nn.Identity())
+        if isinstance(net, nn.Sequential):
+            for i, sub in enumerate(net):
+                if isinstance(sub, nn.Conv2d) and sub in conv_replace_queue:
+                    idx = conv_replace_queue.index(sub)
+                    bn = bn_replace_queue[idx]
+                    new_conv = fuse(sub, bn)
+                    net[i] = new_conv
+                    net[i + 1] = nn.Identity()
+        else:
+            for n in dir(net):
+                sub = getattr(net, n)
+                if isinstance(sub, nn.Conv2d) and sub in conv_replace_queue:
+                    idx = conv_replace_queue.index(sub)
+                    bn = bn_replace_queue[idx]
+                    new_conv = fuse(sub, bn)
+                    setattr(net, n, new_conv)
+            for n in dir(net):
+                sub = getattr(net, n)
+                if isinstance(sub, nn.BatchNorm2d) and sub in bn_replace_queue:
+                    setattr(net, n, nn.Identity())
 
 
 def cvt_ws_cnn(net):
