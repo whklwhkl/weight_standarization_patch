@@ -1,5 +1,5 @@
 # Fuse Conv2d and BatchNorm2d
-Useful function to speed up networks.
+Useful function to speed up networks in `pytorch`.
 
 ## Usage
 
