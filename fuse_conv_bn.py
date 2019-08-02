@@ -96,11 +96,6 @@ def cvt_ws_cnn(net):
                                   sub.bias is None)
                 new_conv.weight = sub.weight
                 # todo: bn weights, bias
-                assert torch.allclose(new_conv.weight, sub.weight)
-                assert torch.allclose(new_conv.weight, sub.weight)
-                assert sub.bias is None
-                setattr(net, n, new_conv)
-                print(sub.bias)
         # if isinstance(subnet, BasicConv2d):
         #     subnet.conv = fuse(subnet.conv, subnet.bn)
         #     del subnet.bn
@@ -126,11 +121,7 @@ class Conv2d(nn.Conv2d):
 
 
 if __name__ == '__main__':
-    from resnet import resnet50
-    m = resnet50(100)
-    m.eval()
-    x = torch.rand(1, 3, 224, 224)
-    y0 = m(x)
-    m.apply(merge_conv_bn);
-    y1 = m(x)
-    print(torch.norm(y0 - y1))
+    import sys
+    model_path = sys.argv[1]
+    m = torch.load(model_path).eval().apply(merge_conv_bn)
+    torch.save(m, model_path.replace('.pth', '_{}.pth'.format('fused')))
