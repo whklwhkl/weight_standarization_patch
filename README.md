@@ -18,5 +18,5 @@ y = model(x)  # 40.1 ms ± 206 µs
 ```
 ### command line tool
 ```bash
-python fuse_conv_bn ${YOUR_MODEL}.pth  # saved as ${YOUR_MODEL_fused}.pth
+python fuse_conv_bn.py ${YOUR_MODEL}.pth  # saved as ${YOUR_MODEL_fused}.pth
 ```
