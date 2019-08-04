@@ -1,6 +1,13 @@
 # Fuse Conv2d and BatchNorm2d
 Useful function to speed up networks in `pytorch`.
 
+## install
+```bash
+git clone https://github.com/whklwhkl/weight_standarization_patch
+cd weight_standarization_patch
+python setup.py install
+```
+
 ## Usage
 
 ### call in python scripts
